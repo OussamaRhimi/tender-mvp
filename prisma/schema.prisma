@@ -1,0 +1,126 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPPLIER
+  BUYER
+  ADMIN
+}
+
+enum SubscriptionPlan {
+  FREE
+  PARTIAL
+  FULL
+}
+
+model User {
+  id              Int              @id @default(autoincrement())
+  email           String           @unique
+  password        String
+  name            String?
+  firstName       String
+  lastName        String
+  country         String?
+  company         String?
+  role            Role             @default(SUPPLIER)
+  subscription    SubscriptionPlan @default(FREE)
+  tenders         Tender[]
+  pendingTenders  PendingTender[]
+  favorites       Favorite[]       // ✅ New relation
+  notifications   Notification[]
+  messagesSent    Message[]        @relation("MessagesSent")
+  messagesReceived Message[]       @relation("MessagesReceived")
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+}
+
+model Tender {
+  id          Int         @id @default(autoincrement())
+  title       String
+  description String
+  deadline    DateTime
+  location    String?
+  source      String?
+  buyerId     Int
+  buyer       User        @relation(fields: [buyerId], references: [id])
+  tags        TenderTag[]
+  favoritedBy Favorite[]  // ✅ New relation
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model Favorite {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  tenderId  Int
+  user      User     @relation(fields: [userId], references: [id])
+  tender    Tender   @relation(fields: [tenderId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([userId, tenderId]) // Prevent duplicate favorites
+}
+
+model PendingTender {
+  id          Int         @id @default(autoincrement())
+  title       String
+  description String
+  deadline    DateTime
+  location    String?
+  source      String?
+  buyerId     Int
+  buyer       User        @relation(fields: [buyerId], references: [id])
+  tags        PendingTenderTag[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model Tag {
+  id              Int              @id @default(autoincrement())
+  name            String           @unique
+  parentId        Int?
+  parent          Tag?             @relation("Subtags", fields: [parentId], references: [id])
+  subtags         Tag[]            @relation("Subtags")
+  tenders         TenderTag[]
+  pendingTenders  PendingTenderTag[]
+}
+
+model TenderTag {
+  tenderId Int
+  tagId    Int
+  tender   Tender @relation(fields: [tenderId], references: [id])
+  tag      Tag    @relation(fields: [tagId], references: [id])
+  @@id([tenderId, tagId])
+}
+
+model PendingTenderTag {
+  pendingTenderId Int
+  tagId           Int
+  pendingTender   PendingTender @relation(fields: [pendingTenderId], references: [id])
+  tag             Tag           @relation(fields: [tagId], references: [id])
+  @@id([pendingTenderId, tagId])
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  message   String
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model Message {
+  id         Int      @id @default(autoincrement())
+  content    String
+  senderId   Int
+  receiverId Int
+  sender     User     @relation("MessagesSent", fields: [senderId], references: [id])
+  receiver   User     @relation("MessagesReceived", fields: [receiverId], references: [id])
+  createdAt  DateTime @default(now())
+}

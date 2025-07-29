@@ -1,0 +1,85 @@
+.dashboard-layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+.sidebar {
+  width: 200px;
+  background-color: #f8f8f8;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  border-right: 1px solid #ddd;
+}
+
+.sidebar-title {
+  font-weight: bold;
+  margin-bottom: 1rem;
+}
+
+.sidebar-link {
+  display: block;
+  padding: 0.6rem 1rem;
+  margin-bottom: 0.5rem;
+  background-color: #00bcd4;
+  color: white;
+  text-align: center;
+  border-radius: 0.5rem;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.sidebar-link.active {
+  background-color: #0097a7;
+}
+
+.logout-btn {
+  background-color: #00bcd4;
+  color: white;
+  padding: 0.6rem;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.dashboard-content {
+  flex-grow: 1;
+  padding: 2rem;
+}
+
+.dashboard-welcome h1 {
+  font-size: 2rem;
+  margin-bottom: 2rem;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 2rem;
+}
+
+.stat-card {
+  background-color: #f9f9f9;
+  padding: 1.5rem;
+  border-radius: 1rem;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.stat-card h2 {
+  font-weight: bold;
+  font-size: 1.2rem;
+  margin-bottom: 0.5rem;
+}
+
+.stat-card h3 {
+  font-size: 2rem;
+  font-weight: bold;
+}
+
+.offer-box {
+  display: flex;
+  justify-content: space-around;
+  gap: 1rem;
+}
