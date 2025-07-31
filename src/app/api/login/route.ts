@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { cookies } from "next/headers"
 import { encrypt } from "@/lib/crypto"
 import { Role } from "@prisma/client"

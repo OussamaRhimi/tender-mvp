@@ -1,13 +1,27 @@
+import { getCurrentUser } from "@/lib/getCurrentUser"
 import Navbar from "@/components/Navbar"
+import NavbarLoggedIn from "@/components/NavbarLoggedIn"
 import Footer from "@/components/Footer"
 import Link from "next/link"
 import { FileText, Download, Tag, Search, ArrowRight } from "lucide-react"
 
-export default function HomePage() {
+export default async function HomePage() {
+    const user = await getCurrentUser()
+     // Normalize user data
+  const userInfo = {
+    id: user?.id ?? null,
+    firstName: typeof user?.firstName === "string" ? user.firstName : "",
+    lastName: typeof user?.lastName === "string" ? user.lastName : "",
+    email: typeof user?.email === "string" ? user.email : "",
+    country: typeof user?.country === "string" ? user.country : "",
+    company: typeof user?.company === "string" ? user.company : "",
+    role: typeof user?.role === "string" ? user.role : "",
+  }
+
+
   return (
     <div className="flex flex-col min-h-screen font-sans bg-gradient-to-br from-gray-50 to-blue-100 text-gray-800">
-      <Navbar />
-
+      {user ? <NavbarLoggedIn user={userInfo} /> : <Navbar />}
       {/* Hero Section */}
       <section className="text-center py-16 sm:py-24 px-4 sm:px-6 md:px-8 max-w-5xl mx-auto animate-slide-up">
         <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-gray-900 mb-4 flex items-center justify-center gap-2">
