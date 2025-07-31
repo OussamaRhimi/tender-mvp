@@ -27,6 +27,12 @@ type PendingTender = {
   deadline: string;
 };
 
+type User = {
+  id: number;
+  email: string;
+  role: string; // Assuming role is a string based on the provided User model
+};
+
 export default function PendingTendersPage() {
   const [tenders, setTenders] = useState<PendingTender[]>([]);
   const [search, setSearch] = useState("");
@@ -34,14 +40,45 @@ export default function PendingTendersPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const router = useRouter();
 
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const res = await fetch("/api/auth/check", {
+          credentials: "include", // Ensure cookies are sent with the request
+        });
+        const data = await res.json();
+
+        if (data.authenticated && data.user?.role === "ADMIN") {
+          setIsAuthenticated(true);
+          setIsAdmin(true);
+        } else {
+          // Redirect to login if not authenticated or not an admin
+          router.push("/login");
+        }
+      } catch (error) {
+        console.error("Authentication check failed:", error);
+        router.push("/login");
+      }
+    };
+
+    checkAuth();
+  }, [router]);
+
   const fetchPendingTenders = async () => {
+    if (!isAuthenticated || !isAdmin) return;
+
     setIsLoading(true);
     setError(null);
     try {
       const res = await fetch(
-        `/api/admin/pending-tenders?page=${currentPage}&search=${encodeURIComponent(search)}`
+        `/api/admin/pending-tenders?page=${currentPage}&search=${encodeURIComponent(search)}`,
+        {
+          credentials: "include", // Ensure cookies are sent with the request
+        }
       );
       if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
       const data = await res.json();
@@ -79,7 +116,10 @@ export default function PendingTendersPage() {
   const handleApprove = async (id: number) => {
     if (!confirm("Are you sure you want to approve this tender?")) return;
     try {
-      const res = await fetch(`/api/admin/tenders/approve/${id}`, { method: "POST" });
+      const res = await fetch(`/api/admin/tenders/approve/${id}`, { 
+        method: "POST",
+        credentials: "include", // Ensure cookies are sent with the request
+      });
       if (res.ok) {
         fetchPendingTenders(); // Refresh list
       } else {
@@ -94,7 +134,10 @@ export default function PendingTendersPage() {
   const handleReject = async (id: number) => {
     if (!confirm("Are you sure you want to reject this tender? This action cannot be undone.")) return;
     try {
-      const res = await fetch(`/api/admin/tenders/reject/${id}`, { method: "POST" });
+      const res = await fetch(`/api/admin/tenders/reject/${id}`, { 
+        method: "POST",
+        credentials: "include", // Ensure cookies are sent with the request
+      });
       if (res.ok) {
         fetchPendingTenders();
       } else {
@@ -107,8 +150,21 @@ export default function PendingTendersPage() {
   };
 
   useEffect(() => {
-    fetchPendingTenders();
-  }, [search, currentPage]);
+    if (isAuthenticated && isAdmin) {
+      fetchPendingTenders();
+    }
+  }, [search, currentPage, isAuthenticated, isAdmin]);
+
+  if (!isAuthenticated || !isAdmin) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin text-blue-600 mx-auto" />
+          <p className="mt-4 text-lg text-gray-700">Checking authentication...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (

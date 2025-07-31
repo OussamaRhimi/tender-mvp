@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { Bar } from "react-chartjs-2"
 import { Chart as ChartJS, BarElement, CategoryScale, LinearScale, Title, Tooltip, Legend } from "chart.js"
 import { Users, FileText, Clock, Tag, Loader2 } from "lucide-react"
@@ -18,14 +19,51 @@ type DashboardMetrics = {
   totalSubtags: number
 }
 
+type User = {
+  id: number
+  email: string
+  role: string // Assuming role is a string based on the provided User model
+}
+
 export default function AdminDashboard() {
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
+  const router = useRouter()
 
   useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const res = await fetch("/api/auth/check", {
+          credentials: "include", // Ensure cookies are sent with the request
+        })
+        const data = await res.json()
+
+        if (data.authenticated && data.user?.role === "ADMIN") {
+          setIsAuthenticated(true)
+          setIsAdmin(true)
+        } else {
+          // Redirect to login or unauthorized page if not authenticated or not an admin
+          router.push("/")
+        }
+      } catch (error) {
+        console.error("Authentication check failed:", error)
+        router.push("/")
+      }
+    }
+
+    checkAuth()
+  }, [router])
+
+  useEffect(() => {
+    if (!isAuthenticated || !isAdmin) return
+
     const fetchMetrics = async () => {
       try {
-        const res = await fetch("/api/admin/metrics")
+        const res = await fetch("/api/admin/metrics", {
+          credentials: "include", // Ensure cookies are sent with the request
+        })
         const data = await res.json()
         setMetrics(data)
       } catch (error) {
@@ -43,7 +81,15 @@ export default function AdminDashboard() {
     }
 
     fetchMetrics()
-  }, [])
+  }, [isAuthenticated, isAdmin])
+
+  if (!isAuthenticated || !isAdmin) {
+    return (
+      <div className="min-h-screen flex justify-center items-center">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+      </div>
+    )
+  }
 
   const chartData = {
     labels: ["Users", "Tenders", "Pending", "Tags", "Subtags"],

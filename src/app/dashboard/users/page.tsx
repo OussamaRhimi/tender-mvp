@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import AdminSidebar from "@/components/AdminSidebar"
 import Footer from "@/components/Footer"
 import {
@@ -32,12 +33,43 @@ export default function UsersDashboard() {
   const [totalPages, setTotalPages] = useState(1)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
+  const router = useRouter()
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const res = await fetch("/api/auth/check", {
+          credentials: "include", // Ensure cookies are sent with the request
+        })
+        const data = await res.json()
+
+        if (data.authenticated && data.user?.role === "ADMIN") {
+          setIsAuthenticated(true)
+          setIsAdmin(true)
+        } else {
+          // Redirect to login if not authenticated or not an admin
+          router.push("/login")
+        }
+      } catch (error) {
+        console.error("Authentication check failed:", error)
+        router.push("/login")
+      }
+    }
+
+    checkAuth()
+  }, [router])
 
   const fetchUsers = async () => {
+    if (!isAuthenticated || !isAdmin) return
+
     setIsLoading(true)
     setError(null)
     try {
-      const res = await fetch(`/api/admin/users?page=${currentPage}&search=${encodeURIComponent(search)}`)
+      const res = await fetch(`/api/admin/users?page=${currentPage}&search=${encodeURIComponent(search)}`, {
+        credentials: "include", // Ensure cookies are sent with the request
+      })
       if (!res.ok) throw new Error(`Failed to fetch users: ${res.status}`)
       const data = await res.json()
 
@@ -59,13 +91,18 @@ export default function UsersDashboard() {
   }
 
   useEffect(() => {
-    fetchUsers()
-  }, [search, currentPage])
+    if (isAuthenticated && isAdmin) {
+      fetchUsers()
+    }
+  }, [search, currentPage, isAuthenticated, isAdmin])
 
   const handleDelete = async (id: number, name: string) => {
     if (!confirm(`Are you sure you want to delete the user "${name}"? This action cannot be undone.`)) return
     try {
-      const res = await fetch(`/api/admin/users/${id}`, { method: "DELETE" })
+      const res = await fetch(`/api/admin/users/${id}`, { 
+        method: "DELETE",
+        credentials: "include", // Ensure cookies are sent with the request
+      })
       if (res.ok) {
         fetchUsers()
       } else {
@@ -112,6 +149,17 @@ Registered: ${registered}`)
       case "FREE": return "bg-gray-100 text-gray-800"
       default: return "bg-gray-100 text-gray-800"
     }
+  }
+
+  if (!isAuthenticated || !isAdmin) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin text-blue-600 mx-auto" />
+          <p className="mt-4 text-lg text-gray-700">Checking authentication...</p>
+        </div>
+      </div>
+    )
   }
 
   if (isLoading) {

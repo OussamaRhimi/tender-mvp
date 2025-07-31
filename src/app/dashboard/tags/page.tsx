@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import AdminSidebar from "@/components/AdminSidebar";
 import Footer from "@/components/Footer";
 import {
@@ -23,6 +24,12 @@ type TagWithStats = {
   tenderCount: number;
 };
 
+type User = {
+  id: number;
+  email: string;
+  role: string; // Assuming role is a string based on the provided User model
+};
+
 export default function TagsDashboard() {
   const [tags, setTags] = useState<TagWithStats[]>([]);
   const [search, setSearch] = useState("");
@@ -30,13 +37,45 @@ export default function TagsDashboard() {
   const [totalPages, setTotalPages] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const router = useRouter();
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const res = await fetch("/api/auth/check", {
+          credentials: "include", // Ensure cookies are sent with the request
+        });
+        const data = await res.json();
+
+        if (data.authenticated && data.user?.role === "ADMIN") {
+          setIsAuthenticated(true);
+          setIsAdmin(true);
+        } else {
+          // Redirect to login if not authenticated or not an admin
+          router.push("/login");
+        }
+      } catch (error) {
+        console.error("Authentication check failed:", error);
+        router.push("/login");
+      }
+    };
+
+    checkAuth();
+  }, [router]);
 
   const fetchTags = async () => {
+    if (!isAuthenticated || !isAdmin) return;
+
     setIsLoading(true);
     setError(null);
     try {
       const res = await fetch(
-        `/api/admin/tags?page=${currentPage}&search=${encodeURIComponent(search)}`
+        `/api/admin/tags?page=${currentPage}&search=${encodeURIComponent(search)}`,
+        {
+          credentials: "include", // Ensure cookies are sent with the request
+        }
       );
       if (!res.ok) throw new Error(`Failed to fetch tags: ${res.status}`);
       const data = await res.json();
@@ -57,8 +96,10 @@ export default function TagsDashboard() {
   };
 
   useEffect(() => {
-    fetchTags();
-  }, [search, currentPage]);
+    if (isAuthenticated && isAdmin) {
+      fetchTags();
+    }
+  }, [search, currentPage, isAuthenticated, isAdmin]);
 
   const handleAdd = () => {
     openTagModal("Add New Tag", null, null, fetchTags, tags);
@@ -82,7 +123,10 @@ export default function TagsDashboard() {
     )
       return;
     try {
-      const res = await fetch(`/api/admin/tags/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/admin/tags/${id}`, { 
+        method: "DELETE",
+        credentials: "include", // Ensure cookies are sent with the request
+      });
       if (res.ok) {
         fetchTags();
       } else {
@@ -94,6 +138,17 @@ export default function TagsDashboard() {
       alert(message);
     }
   };
+
+  if (!isAuthenticated || !isAdmin) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin text-blue-600 mx-auto" />
+          <p className="mt-4 text-lg text-gray-700">Checking authentication...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -408,6 +463,7 @@ function openTagModal(
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
+        credentials: "include", // Ensure cookies are sent with the request
         body,
       });
 
