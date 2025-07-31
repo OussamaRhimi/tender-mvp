@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import InboxSidebar from "@/components/InboxSidebar"
 import Footer from "@/components/Footer"
-import { Search, Eye, Trash2, FileText } from "lucide-react"
+import { Search, Eye, Trash2, FileText, Loader2 } from "lucide-react"
 
 type Tender = {
   id: number
@@ -17,18 +17,47 @@ type Tender = {
 
 export default function MyTendersPage() {
   const [tenders, setTenders] = useState<Tender[]>([])
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
   const router = useRouter()
 
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const res = await fetch("/api/auth/check", {
+          credentials: "include", // Ensure cookies are sent with the request
+        })
+        const data = await res.json()
+
+        if (data.authenticated) {
+          setIsAuthenticated(true)
+        } else {
+          // Redirect to login if not authenticated
+          router.push("/")
+        }
+      } catch (error) {
+        console.error("Authentication check failed:", error)
+        router.push("/")
+      }
+    }
+
+    checkAuth()
+  }, [router])
+
   const fetchMyTenders = async () => {
+    if (!isAuthenticated) return
+
     setLoading(true)
     try {
-      const res = await fetch("/api/inbox/my-tenders")
+      const res = await fetch("/api/inbox/my-tenders", {
+        credentials: "include", // Ensure cookies are sent with the request
+      })
       const data = await res.json()
       setTenders(data.tenders || [])
     } catch (err) {
       console.error("Failed to fetch my tenders", err)
+      setTenders([])
     } finally {
       setLoading(false)
     }
@@ -37,13 +66,19 @@ export default function MyTendersPage() {
   const handleDelete = async (id: number) => {
     if (!confirm("Are you sure you want to delete this tender?")) return
 
-    const res = await fetch(`/api/admin/tenders/${id}`, {
-      method: "DELETE",
-    })
+    try {
+      const res = await fetch(`/api/admin/tenders/${id}`, {
+        method: "DELETE",
+        credentials: "include", // Ensure cookies are sent with the request
+      })
 
-    if (res.ok) {
-      fetchMyTenders()
-    } else {
+      if (res.ok) {
+        fetchMyTenders()
+      } else {
+        alert("Failed to delete tender.")
+      }
+    } catch (err) {
+      console.error("Failed to delete tender:", err)
       alert("Failed to delete tender.")
     }
   }
@@ -53,8 +88,10 @@ export default function MyTendersPage() {
   }
 
   useEffect(() => {
-    fetchMyTenders()
-  }, [])
+    if (isAuthenticated) {
+      fetchMyTenders()
+    }
+  }, [isAuthenticated])
 
   // Filter tenders based on search query
   const filteredTenders = tenders.filter(
@@ -64,6 +101,17 @@ export default function MyTendersPage() {
       tender.tags.some((t) => t.tag.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
       tender.status.toLowerCase().includes(searchQuery.toLowerCase())
   )
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin text-blue-600 mx-auto" />
+          <p className="mt-4 text-lg text-gray-700">Checking authentication...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-gray-50 to-blue-50 text-gray-800">

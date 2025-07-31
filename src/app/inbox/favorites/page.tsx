@@ -1,10 +1,11 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import InboxSidebar from "@/components/InboxSidebar"
 import Link from "next/link"
 import Footer from "@/components/Footer"
-import { MapPin, Calendar, Trash2, Info, Search, Star } from "lucide-react"
+import { MapPin, Calendar, Trash2, Info, Search, Star, Loader2 } from "lucide-react"
 
 type Tender = {
   id: number
@@ -26,28 +27,70 @@ export default function FavoritesPage() {
   const [favorites, setFavorites] = useState<Tender[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const router = useRouter()
 
   useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const res = await fetch("/api/auth/check", {
+          credentials: "include", // Ensure cookies are sent with the request
+        })
+        const data = await res.json()
+
+        if (data.authenticated) {
+          setIsAuthenticated(true)
+        } else {
+          // Redirect to login if not authenticated
+          router.push("/")
+        }
+      } catch (error) {
+        console.error("Authentication check failed:", error)
+        router.push("/")
+      }
+    }
+
+    checkAuth()
+  }, [router])
+
+  useEffect(() => {
+    if (!isAuthenticated) return
+
     const fetchFavorites = async () => {
-      const res = await fetch("/api/inbox/favorites")
-      const data = await res.json()
-      setFavorites(data.tenders || [])
-      setLoading(false)
+      setLoading(true)
+      try {
+        const res = await fetch("/api/inbox/favorites", {
+          credentials: "include", // Ensure cookies are sent with the request
+        })
+        const data = await res.json()
+        setFavorites(data.tenders || [])
+      } catch (error) {
+        console.error("Failed to fetch favorites:", error)
+        setFavorites([])
+      } finally {
+        setLoading(false)
+      }
     }
 
     fetchFavorites()
-  }, [])
+  }, [isAuthenticated])
 
   const handleRemove = async (tenderId: number) => {
-    const res = await fetch("/api/inbox/favorites", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tenderId }),
-    })
+    try {
+      const res = await fetch("/api/inbox/favorites", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include", // Ensure cookies are sent with the request
+        body: JSON.stringify({ tenderId }),
+      })
 
-    if (res.ok) {
-      setFavorites((prev) => prev.filter((t) => t.id !== tenderId))
-    } else {
+      if (res.ok) {
+        setFavorites((prev) => prev.filter((t) => t.id !== tenderId))
+      } else {
+        alert("Failed to remove from favorites.")
+      }
+    } catch (error) {
+      console.error("Failed to remove from favorites:", error)
       alert("Failed to remove from favorites.")
     }
   }
@@ -59,6 +102,17 @@ export default function FavoritesPage() {
       tender.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
       tender.tags.some((t) => t.tag.name.toLowerCase().includes(searchQuery.toLowerCase()))
   )
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin text-blue-600 mx-auto" />
+          <p className="mt-4 text-lg text-gray-700">Checking authentication...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-gray-50 to-blue-50 text-gray-800">
@@ -172,7 +226,7 @@ export default function FavoritesPage() {
                   </div>
 
                   <div className="text-sm text-gray-600 flex items-center gap-2">
-                    <Calendar className="h-three w-4 flex-shrink-0" aria-hidden="true" />
+                    <Calendar className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
                     <span>{new Date(tender.deadline).toLocaleDateString()}</span>
                   </div>
                 </div>

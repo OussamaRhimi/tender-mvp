@@ -1,37 +1,43 @@
-import { getCurrentUser } from "@/lib/getCurrentUser"
-import Navbar from "@/components/Navbar"
-import NavbarLoggedIn from "@/components/NavbarLoggedIn"
-import Footer from "@/components/Footer"
-import prisma from "@/lib/prisma"
-import TenderTable from "@/components/TenderTable"
-import SearchAndFilter from "@/components/SearchAndFilter"
-import { notFound } from "next/navigation"
+import { getCurrentUser } from "@/lib/getCurrentUser";
+import Navbar from "@/components/Navbar";
+import NavbarLoggedIn from "@/components/NavbarLoggedIn";
+import Footer from "@/components/Footer";
+import prisma from "@/lib/prisma";
+import TenderTable from "@/components/TenderTable";
+import SearchAndFilter from "@/components/SearchAndFilter";
+import { redirect } from "next/navigation";
 
 interface SearchParams {
-  title?: string
-  tag?: string
-  subtag?: string
-  location?: string // Updated from country to location
-  deadline?: string
-  email?: string
-  page?: string
+  title?: string;
+  tag?: string;
+  subtag?: string;
+  location?: string; // Updated from country to location
+  deadline?: string;
+  email?: string;
+  page?: string;
 }
 
 export default async function HomePage({
   searchParams,
 }: {
-  searchParams: SearchParams
+  searchParams: SearchParams;
 }) {
-  const user = await getCurrentUser()
+  const user = await getCurrentUser();
+
+  // Redirect to login if user is not authenticated
+  if (!user) {
+    redirect("/");
+  }
+
   const userInfo = {
     firstName: typeof user?.firstName === "string" ? user.firstName : undefined,
     lastName: typeof user?.lastName === "string" ? user.lastName : undefined,
-  }
+  };
 
-  const tagId = searchParams.tag && !isNaN(parseInt(searchParams.tag)) ? parseInt(searchParams.tag) : undefined
-  const subtagId = searchParams.subtag && !isNaN(parseInt(searchParams.subtag)) ? parseInt(searchParams.subtag) : undefined
-  const page = parseInt(searchParams.page || "1")
-  const tendersPerPage = 5
+  const tagId = searchParams.tag && !isNaN(parseInt(searchParams.tag)) ? parseInt(searchParams.tag) : undefined;
+  const subtagId = searchParams.subtag && !isNaN(parseInt(searchParams.subtag)) ? parseInt(searchParams.subtag) : undefined;
+  const page = parseInt(searchParams.page || "1");
+  const tendersPerPage = 5;
 
   const tagFilter = tagId
     ? {
@@ -39,7 +45,7 @@ export default async function HomePage({
           tagId: tagId,
         },
       }
-    : undefined
+    : undefined;
 
   const subtagFilter = subtagId
     ? {
@@ -47,7 +53,7 @@ export default async function HomePage({
           tagId: subtagId,
         },
       }
-    : undefined
+    : undefined;
 
   const whereClause = {
     title: searchParams.title
@@ -65,7 +71,7 @@ export default async function HomePage({
         }
       : undefined,
     tags: tagFilter || subtagFilter ? tagFilter || subtagFilter : undefined,
-  }
+  };
 
   const [tenders, totalTenders, tags, subtags, locations] = await Promise.all([
     prisma.tender.findMany({
@@ -88,9 +94,9 @@ export default async function HomePage({
       distinct: ["location"],
       where: { location: { not: null } },
     }),
-  ])
+  ]);
 
-  const totalPages = Math.ceil(totalTenders / tendersPerPage)
+  const totalPages = Math.ceil(totalTenders / tendersPerPage);
 
   const displayTenders = tenders.map((t) => ({
     id: t.id,
@@ -100,13 +106,14 @@ export default async function HomePage({
     location: t.location ?? "Unknown",
     buyerName: `${t.buyer.firstName} ${t.buyer.lastName}`,
     tags: t.tags.map((tt) => tt.tag.name),
-  }))
+  }));
 
   return (
     <div className="min-h-screen bg-white text-black flex flex-col">
       {user ? <NavbarLoggedIn user={userInfo} /> : <Navbar />}
 
-      <main className="flex-1 px-6 py-10 max-w-7xl mx-auto"><br/>
+      <main className="flex-1 px-6 py-10 max-w-7xl mx-auto">
+        <br />
         <h1 className="text-4xl font-bold text-center mb-10">Available Tenders</h1>
 
         <SearchAndFilter
@@ -120,15 +127,15 @@ export default async function HomePage({
         {/* Pagination */}
         <div className="flex justify-center mt-6 gap-2">
           {Array.from({ length: totalPages }, (_, i) => {
-            const url = new URLSearchParams()
-            if (searchParams.title) url.set("title", searchParams.title)
-            if (searchParams.tag) url.set("tag", searchParams.tag)
-            if (searchParams.subtag) url.set("subtag", searchParams.subtag)
-            if (searchParams.location) url.set("location", searchParams.location) // Updated from country to location
-            if (searchParams.deadline) url.set("deadline", searchParams.deadline)
-            if (searchParams.email) url.set("email", searchParams.email)
-            url.set("page", String(i + 1))
-            const queryString = url.toString()
+            const url = new URLSearchParams();
+            if (searchParams.title) url.set("title", searchParams.title);
+            if (searchParams.tag) url.set("tag", searchParams.tag);
+            if (searchParams.subtag) url.set("subtag", searchParams.subtag);
+            if (searchParams.location) url.set("location", searchParams.location); // Updated from country to location
+            if (searchParams.deadline) url.set("deadline", searchParams.deadline);
+            if (searchParams.email) url.set("email", searchParams.email);
+            url.set("page", String(i + 1));
+            const queryString = url.toString();
             return (
               <a key={i} href={`/home?${queryString}`}>
                 <button
@@ -139,12 +146,12 @@ export default async function HomePage({
                   {i + 1}
                 </button>
               </a>
-            )
+            );
           })}
         </div>
       </main>
 
       <Footer />
     </div>
-  )
+  );
 }

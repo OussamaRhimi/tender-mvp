@@ -1,4 +1,5 @@
 import { getCurrentUser } from "@/lib/getCurrentUser"
+import { redirect } from "next/navigation"
 import Navbar from "@/components/Navbar"
 import NavbarLoggedIn from "@/components/NavbarLoggedIn"
 import Footer from "@/components/Footer"
@@ -13,6 +14,12 @@ type Props = {
 
 export default async function TenderDetailPage({ params }: Props) {
   const user = await getCurrentUser()
+
+  // Redirect to login if user is not authenticated
+  if (!user) {
+    redirect("/login")
+  }
+
   const userInfo = {
     firstName: typeof user?.firstName === "string" ? user.firstName : undefined,
     lastName: typeof user?.lastName === "string" ? user.lastName : undefined,

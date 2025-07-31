@@ -57,11 +57,11 @@ export default function PendingTendersPage() {
           setIsAdmin(true);
         } else {
           // Redirect to login if not authenticated or not an admin
-          router.push("/login");
+          router.push("/");
         }
       } catch (error) {
         console.error("Authentication check failed:", error);
-        router.push("/login");
+        router.push("/");
       }
     };
 

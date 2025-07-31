@@ -1,10 +1,10 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { getCurrentUser } from "@/lib/getCurrentUser"
+import { useRouter } from "next/navigation"
 import InboxSidebar from "@/components/InboxSidebar"
 import Footer from "@/components/Footer"
-import { Mail, Search, X, User } from "lucide-react"
+import { Mail, Search, X, User, Loader2 } from "lucide-react"
 
 type Message = {
   id: number
@@ -20,17 +20,53 @@ export default function MessagesPage() {
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [loading, setLoading] = useState(true)
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const router = useRouter()
 
   useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const res = await fetch("/api/auth/check", {
+          credentials: "include", // Ensure cookies are sent with the request
+        })
+        const data = await res.json()
+
+        if (data.authenticated) {
+          setIsAuthenticated(true)
+        } else {
+          // Redirect to login if not authenticated
+          router.push("/")
+        }
+      } catch (error) {
+        console.error("Authentication check failed:", error)
+        router.push("/")
+      }
+    }
+
+    checkAuth()
+  }, [router])
+
+  useEffect(() => {
+    if (!isAuthenticated) return
+
     const fetchMessages = async () => {
-      const res = await fetch("/api/inbox/messages")
-      const data = await res.json()
-      setMessages(data.messages || [])
-      setLoading(false)
+      setLoading(true)
+      try {
+        const res = await fetch("/api/inbox/messages", {
+          credentials: "include", // Ensure cookies are sent with the request
+        })
+        const data = await res.json()
+        setMessages(data.messages || [])
+      } catch (error) {
+        console.error("Failed to fetch messages:", error)
+        setMessages([])
+      } finally {
+        setLoading(false)
+      }
     }
 
     fetchMessages()
-  }, [])
+  }, [isAuthenticated])
 
   // Filter messages based on search query
   const filteredMessages = messages.filter(
@@ -39,6 +75,17 @@ export default function MessagesPage() {
       msg.senderEmail.toLowerCase().includes(searchQuery.toLowerCase()) ||
       `${msg.senderFirstName} ${msg.senderLastName}`.toLowerCase().includes(searchQuery.toLowerCase())
   )
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin text-blue-600 mx-auto" />
+          <p className="mt-4 text-lg text-gray-700">Checking authentication...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-gray-50 to-blue-50 text-gray-800">
