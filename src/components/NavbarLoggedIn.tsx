@@ -28,7 +28,7 @@ export default function NavbarLoggedIn({ user }: Props) {
   return (
     <nav className="bg-gradient-to-r from-gray-900 via-blue-900 to-gray-900 text-white py-4 px-6 sm:px-8 md:px-12 shadow-lg flex justify-between items-center fixed top-0 left-0 right-0 z-50 backdrop-blur-md">
       <div className="font-extrabold text-xl tracking-tight">
-        <Link href="/home" className="hover:text-blue-300 transition-colors duration-200 flex items-center gap-2">
+        <Link href="/" className="hover:text-blue-300 transition-colors duration-200 flex items-center gap-2">
           <FileText className="h-6 w-6" aria-hidden="true" />
           My Tenders
         </Link>

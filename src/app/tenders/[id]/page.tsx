@@ -12,10 +12,29 @@ type Props = {
   params: { id: string }
 }
 
+// Helper functions for file types
+function isImageFile(filePath: string) {
+  return /\.(jpg|jpeg|png|gif|webp)$/i.test(filePath)
+}
+
+function isPdfFile(filePath: string) {
+  return /\.pdf$/i.test(filePath)
+}
+
+const downloadExtensions = ["doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt", "csv"]
+
+function isDownloadFile(filePath: string) {
+  return downloadExtensions.some(ext => new RegExp(`\\.${ext}$`, "i").test(filePath))
+}
+
+// Check if string looks like a URL or local file path starting with /uploads
+function isFilePathOrUrl(str: string) {
+  return /^https?:\/\//i.test(str) || /^\/uploads\//i.test(str)
+}
+
 export default async function TenderDetailPage({ params }: Props) {
   const user = await getCurrentUser()
 
-  // Redirect to login if user is not authenticated
   if (!user) {
     redirect("/login")
   }
@@ -40,7 +59,7 @@ export default async function TenderDetailPage({ params }: Props) {
   const deadline = new Date(tender.deadline)
   const now = new Date()
   const daysRemaining = Math.ceil((deadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-  const maxDays = 30 // For progress bar scaling
+  const maxDays = 30
   const progress = daysRemaining > 0 ? Math.min((daysRemaining / maxDays) * 100, 100) : 0
 
   const getDeadlineStatus = () => {
@@ -186,20 +205,57 @@ export default async function TenderDetailPage({ params }: Props) {
                 <File className="h-5 w-5 text-gray-500" aria-hidden="true" />
                 Source
               </h2>
+
               {tender.source ? (
                 <div className="text-gray-800">
-                  {tender.source.startsWith("http") ? (
-                    <a
-                      href={tender.source}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:text-blue-800 transition-colors duration-200 flex items-center gap-2"
-                      aria-label="View tender source"
-                    >
-                      <ExternalLink className="h-4 w-4" aria-hidden="true" />
-                      View Source
-                    </a>
+                  {isFilePathOrUrl(tender.source) ? (
+                    tender.source.startsWith("http") ? (
+                      <a
+                        href={tender.source}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-800 transition-colors duration-200 flex items-center gap-2"
+                        aria-label="View tender source"
+                      >
+                        <ExternalLink className="h-4 w-4" aria-hidden="true" />
+                        View Source
+                      </a>
+                    ) : isImageFile(tender.source) ? (
+                      <img
+                        src={tender.source}
+                        alt="Tender uploaded file"
+                        className="max-w-full rounded shadow"
+                      />
+                    ) : isPdfFile(tender.source) ? (
+                      <embed
+                        src={tender.source}
+                        type="application/pdf"
+                        width="100%"
+                        height="500px"
+                        aria-label="Tender uploaded PDF file"
+                      />
+                    ) : isDownloadFile(tender.source) ? (
+                      <a
+                        href={tender.source}
+                        download
+                        className="text-blue-600 hover:text-blue-800 transition-colors duration-200"
+                        aria-label="Download tender file"
+                      >
+                        Download File
+                      </a>
+                    ) : (
+                      // fallback to download
+                      <a
+                        href={tender.source}
+                        download
+                        className="text-blue-600 hover:text-blue-800 transition-colors duration-200"
+                        aria-label="Download tender file"
+                      >
+                        Download File
+                      </a>
+                    )
                   ) : (
+                    // treat as plain text and show it
                     <p className="whitespace-pre-wrap">{tender.source}</p>
                   )}
                 </div>
