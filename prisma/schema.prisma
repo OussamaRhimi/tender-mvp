@@ -32,14 +32,23 @@ model User {
   subscription    SubscriptionPlan @default(FREE)
   tenders         Tender[]
   pendingTenders  PendingTender[]
-  favorites       Favorite[]       // ✅ New relation
+  favorites       Favorite[]
   notifications   Notification[]
   messagesSent    Message[]        @relation("MessagesSent")
   messagesReceived Message[]       @relation("MessagesReceived")
+  passwordResetTokens PasswordResetToken[] // ✅ Added relation to PasswordResetToken
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
 }
 
+model PasswordResetToken {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
 model Tender {
   id          Int         @id @default(autoincrement())
   title       String
