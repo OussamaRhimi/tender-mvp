@@ -18,6 +18,7 @@ export async function POST(req: Request) {
       company,
       role,
       subscription,
+      parentTagId, // ✅ Accept parentTagId
     } = data
 
     // 1. Validate required fields
@@ -35,30 +36,65 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: 'Email already in use' }, { status: 409 })
     }
 
-    // 3. Hash password
+    // 3. Validate parentTagId if subscription is PARTIAL
+    if (subscription === 'PARTIAL') {
+      if (!parentTagId) {
+        return NextResponse.json(
+          { message: 'Premium (Partial) plan requires a category selection.' },
+          { status: 400 }
+        )
+      }
+
+      // Ensure parentTagId is a number
+      const tagId = parseInt(parentTagId, 10)
+      if (isNaN(tagId)) {
+        return NextResponse.json({ message: 'Invalid category ID.' }, { status: 400 })
+      }
+
+      // Check if the tag exists and is a parent (i.e., parentId is null)
+      const tag = await prisma.tag.findUnique({
+        where: { id: tagId },
+      })
+
+      if (!tag) {
+        return NextResponse.json({ message: 'Selected category does not exist.' }, { status: 400 })
+      }
+
+      if (tag.parentId !== null) {
+        return NextResponse.json(
+          { message: 'You must select a main category, not a subcategory.' },
+          { status: 400 }
+        )
+      }
+    } else {
+      // For FREE or FULL plans, ensure no parentTagId is enforced
+      // (ignore if passed, or optionally reject it)
+    }
+
+    // 4. Hash password
     const hashedPassword = await bcrypt.hash(password, 10)
 
-    // 4. Create user
- const fullName = `${firstName} ${lastName}`
+    // 5. Create user
+    const fullName = `${firstName} ${lastName}`
 
-const newUser = await prisma.user.create({
-  data: {
-    email,
-    password: hashedPassword,
-    firstName,
-    lastName,
-    name: fullName, // <--- This line sets the combined name
-    country,
-    company,
-    role,
-    subscription,
-  }
-})
-
+    const newUser = await prisma.user.create({
+      data: {
+        email,
+        password: hashedPassword,
+        firstName,
+        lastName,
+        name: fullName,
+        country,
+        company,
+        role,
+        subscription,
+        parentTagId: subscription === 'PARTIAL' ? parseInt(parentTagId, 10) : null, // ✅ Set only for PARTIAL
+      },
+    })
 
     return NextResponse.json({ message: 'User created successfully', userId: newUser.id }, { status: 201 })
   } catch (error) {
     console.error('Registration Error:', error)
-    return NextResponse.json({ message: 'Server error' }, { status: 500 })
+    return NextResponse.json({ message: 'Server error during registration' }, { status: 500 })
   }
 }

@@ -30,16 +30,20 @@ model User {
   company         String?
   role            Role             @default(SUPPLIER)
   subscription    SubscriptionPlan @default(FREE)
+  parentTagId     Int?
+  parentTag       Tag?             @relation("UserParentTag", fields: [parentTagId], references: [id]) // ✅ Full named relation
   tenders         Tender[]
   pendingTenders  PendingTender[]
   favorites       Favorite[]
   notifications   Notification[]
   messagesSent    Message[]        @relation("MessagesSent")
   messagesReceived Message[]       @relation("MessagesReceived")
-  passwordResetTokens PasswordResetToken[] // ✅ Added relation to PasswordResetToken
+  passwordResetTokens PasswordResetToken[]
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
 }
+
+
 
 model PasswordResetToken {
   id        Int      @id @default(autoincrement())
@@ -97,6 +101,9 @@ model Tag {
   subtags         Tag[]            @relation("Subtags")
   tenders         TenderTag[]
   pendingTenders  PendingTenderTag[]
+
+  // 👇 Opposite side of the same named relation
+  users           User[]           @relation("UserParentTag") // ✅ Same name, no fields needed here
 }
 
 model TenderTag {

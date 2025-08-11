@@ -1,14 +1,36 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Navbar from "@/components/Navbar"
 import Footer from "@/components/Footer"
 import { User, Mail, MapPin, Building, Shield, Lock, Eye, EyeOff, Loader2 } from "lucide-react"
 
+interface Tag {
+  id: number
+  name: string
+}
+
+type SubscriptionPlan = "FREE" | "PARTIAL" | "FULL"
+type Role = "SUPPLIER" | "BUYER"
+
+type FormState = {
+  firstName: string
+  lastName: string
+  email: string
+  country: string
+  company: string
+  role: Role
+  password: string
+  confirmPassword: string
+  subscription: SubscriptionPlan
+  parentTagId: string // string for form handling, parsed to number on submit
+  agree: boolean
+}
+
 export default function RegisterPage() {
   const router = useRouter()
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<FormState>({
     firstName: "",
     lastName: "",
     email: "",
@@ -18,13 +40,35 @@ export default function RegisterPage() {
     password: "",
     confirmPassword: "",
     subscription: "FREE",
+    parentTagId: "",
     agree: false,
   })
   const [error, setError] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [parentTags, setParentTags] = useState<Tag[]>([])
+  const [isLoadingTags, setIsLoadingTags] = useState(true)
   const formRef = useRef<HTMLFormElement>(null)
+
+  // Fetch parent tags (top-level categories)
+  useEffect(() => {
+    const fetchParentTags = async () => {
+      try {
+        const res = await fetch("/api/tags/parents")
+        if (!res.ok) throw new Error("Failed to load categories")
+        const data: Tag[] = await res.json()
+        setParentTags(data)
+      } catch (err) {
+        console.error("Error fetching parent tags:", err)
+        setError("Could not load categories. Please try again.")
+      } finally {
+        setIsLoadingTags(false)
+      }
+    }
+
+    fetchParentTags()
+  }, [])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target
@@ -49,11 +93,21 @@ export default function RegisterPage() {
       return
     }
 
+    // Validate parentTagId only if subscription is PARTIAL
+    if (form.subscription === "PARTIAL" && !form.parentTagId) {
+      setError("Please select a category for your premium access.")
+      setIsLoading(false)
+      return
+    }
+
     try {
       const res = await fetch("/api/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          ...form,
+          parentTagId: form.subscription === "PARTIAL" ? parseInt(form.parentTagId, 10) : null,
+        }),
       })
 
       const data = await res.json()
@@ -114,6 +168,7 @@ export default function RegisterPage() {
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 space-y-0">
+            {/* First Name */}
             <div className="relative">
               <label className="block mb-1 font-medium text-gray-700 flex items-center gap-2">
                 <User className="h-4 w-4 text-gray-500" aria-hidden="true" />
@@ -131,6 +186,7 @@ export default function RegisterPage() {
               />
             </div>
 
+            {/* Last Name */}
             <div className="relative">
               <label className="block mb-1 font-medium text-gray-700 flex items-center gap-2">
                 <User className="h-4 w-4 text-gray-500" aria-hidden="true" />
@@ -148,6 +204,7 @@ export default function RegisterPage() {
               />
             </div>
 
+            {/* Email */}
             <div className="relative md:col-span-2">
               <label className="block mb-1 font-medium text-gray-700 flex items-center gap-2">
                 <Mail className="h-4 w-4 text-gray-500" aria-hidden="true" />
@@ -165,6 +222,7 @@ export default function RegisterPage() {
               />
             </div>
 
+            {/* Country */}
             <div className="relative md:col-span-2">
               <label className="block mb-1 font-medium text-gray-700 flex items-center gap-2">
                 <MapPin className="h-4 w-4 text-gray-500" aria-hidden="true" />
@@ -181,6 +239,7 @@ export default function RegisterPage() {
               />
             </div>
 
+            {/* Company */}
             <div className="relative md:col-span-2">
               <label className="block mb-1 font-medium text-gray-700 flex items-center gap-2">
                 <Building className="h-4 w-4 text-gray-500" aria-hidden="true" />
@@ -197,6 +256,7 @@ export default function RegisterPage() {
               />
             </div>
 
+            {/* Role */}
             <div className="relative md:col-span-2">
               <label className="block mb-1 font-medium text-gray-700 flex items-center gap-2">
                 <Shield className="h-4 w-4 text-gray-500" aria-hidden="true" />
@@ -214,6 +274,7 @@ export default function RegisterPage() {
               </select>
             </div>
 
+            {/* Password */}
             <div className="relative">
               <label className="block mb-1 font-medium text-gray-700 flex items-center gap-2">
                 <Lock className="h-4 w-4 text-gray-500" aria-hidden="true" />
@@ -245,6 +306,7 @@ export default function RegisterPage() {
               </div>
             </div>
 
+            {/* Confirm Password */}
             <div className="relative">
               <label className="block mb-1 font-medium text-gray-700 flex items-center gap-2">
                 <Lock className="h-4 w-4 text-gray-500" aria-hidden="true" />
@@ -276,6 +338,7 @@ export default function RegisterPage() {
               </div>
             </div>
 
+            {/* Subscription Plan */}
             <div className="relative md:col-span-2">
               <label className="block mb-1 font-medium text-gray-700 flex items-center gap-2">
                 <Shield className="h-4 w-4 text-gray-500" aria-hidden="true" />
@@ -294,6 +357,37 @@ export default function RegisterPage() {
               </select>
             </div>
 
+            {/* Conditional Parent Tag Selection */}
+            {form.subscription === "PARTIAL" && (
+              <div className="relative md:col-span-2 animate-fade-in">
+                <label className="block mb-1 font-medium text-gray-700 flex items-center gap-2">
+                  <MapPin className="h-4 w-4 text-gray-500" aria-hidden="true" />
+                  Select Category (Access Control)
+                </label>
+                {isLoadingTags ? (
+                  <p className="text-gray-500 text-sm">Loading categories...</p>
+                ) : parentTags.length > 0 ? (
+                  <select
+                    name="parentTagId"
+                    value={form.parentTagId}
+                    onChange={handleChange}
+                    className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-600 bg-white text-gray-800 text-sm transition-all duration-200"
+                    aria-label="Parent Tag"
+                  >
+                    <option value="">-- Select a category --</option>
+                    {parentTags.map((tag) => (
+                      <option key={tag.id} value={tag.id}>
+                        {tag.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <p className="text-red-500 text-sm">No categories available. Contact support.</p>
+                )}
+              </div>
+            )}
+
+            {/* Agreement */}
             <div className="flex items-start gap-2 md:col-span-2">
               <input
                 type="checkbox"
@@ -316,6 +410,7 @@ export default function RegisterPage() {
               </label>
             </div>
 
+            {/* Sign In Link */}
             <p className="text-sm text-center text-gray-600 md:col-span-2">
               Already have an account?{" "}
               <a href="/login" className="text-blue-600 hover:text-blue-800 font-medium transition-colors duration-200">
@@ -323,6 +418,7 @@ export default function RegisterPage() {
               </a>
             </p>
 
+            {/* Submit Button */}
             <button
               type="submit"
               disabled={isLoading}
